@@ -10,7 +10,6 @@ Modified on Wed Jun 03 22:00:00 2022
 
 import warnings
 import numpy as np
-from os.path import join, basename, exists
 
 from ase import Atoms
 from ase.utils import reader, writer
@@ -56,7 +55,8 @@ def read_ase_stru(stru=None, coordinates_type="Cartesian"):
                         atoms_position[i].append(list(
                             stru.get_positions()[j]))
                         atoms_masses[i] = stru.get_masses()[j]
-                        atoms_magnetism[i] += np.linalg.norm(stru.get_initial_magnetic_moments()[j])              
+                        atoms_magnetism[i] += np.linalg.norm(
+                            stru.get_initial_magnetic_moments()[j])
 
         elif coordinates_type == 'Direct':
             for i in range(len(atoms_list)):
@@ -65,7 +65,8 @@ def read_ase_stru(stru=None, coordinates_type="Cartesian"):
                         atoms_position[i].append(list(
                             stru.get_scaled_positions()[j]))
                         atoms_masses[i] = stru.get_masses()[j]
-                        atoms_magnetism[i] += np.linalg.norm(stru.get_initial_magnetic_moments()[j])
+                        atoms_magnetism[i] += np.linalg.norm(
+                            stru.get_initial_magnetic_moments()[j])
 
         else:
             raise ValueError("'coordinates_type' is ERROR,"
@@ -77,11 +78,8 @@ def read_ase_stru(stru=None, coordinates_type="Cartesian"):
 def write_input_stru_core(fd,
                           stru=None,
                           pp=None,
-                          pseudo_dir='./',
                           basis=None,
-                          orbital_dir='./',
                           offsite_basis=None,
-                          offsite_orbital_dir='./',
                           coordinates_type="Cartesian",
                           atoms_list=None,
                           atoms_position=None,
@@ -104,10 +102,7 @@ def write_input_stru_core(fd,
     else:
         fd.write('ATOMIC_SPECIES\n')
         for i, elem in enumerate(atoms_list):
-            if not exists(pp[elem]):
-                pseudofile = join(pseudo_dir, basename(pp[elem]))
-            else:
-                pseudofile = pp[elem]
+            pseudofile = pp[elem]
             temp1 = ' ' * (4-len(atoms_list[i]))
             temp2 = ' ' * (14-len(str(atoms_masses[i])))
             atomic_species = (atoms_list[i] + temp1
@@ -121,10 +116,7 @@ def write_input_stru_core(fd,
             fd.write('\n')
             fd.write('NUMERICAL_ORBITAL\n')
             for i, elem in enumerate(atoms_list):
-                if not exists(basis[elem]):
-                    orbitalfile = join(orbital_dir, basename(basis[elem]))
-                else:
-                    orbitalfile = basis[elem]
+                orbitalfile = basis[elem]
                 fd.write(orbitalfile)
                 fd.write('\n')
 
@@ -132,11 +124,7 @@ def write_input_stru_core(fd,
             fd.write('\n')
             fd.write('ABFS_ORBITAL\n')
             for i, elem in enumerate(atoms_list):
-                if not exists(offsite_basis[elem]):
-                    orbitalfile = join(offsite_orbital_dir,
-                                       basename(offsite_basis[elem]))
-                else:
-                    orbitalfile = offsite_basis[elem]
+                orbitalfile = offsite_basis[elem]
             fd.write(orbitalfile)
             fd.write('\n')
 
@@ -171,12 +159,13 @@ def write_input_stru_core(fd,
 
             for j in range(len(atoms_position[i])):
                 temp4 = str("{:0<12f}".format(
-                    atoms_position[i][j][0])) + ' ' 
+                    atoms_position[i][j][0])) + ' '
                 temp5 = str("{:0<12f}".format(
-                    atoms_position[i][j][1])) + ' ' 
+                    atoms_position[i][j][1])) + ' '
                 temp6 = str("{:0<12f}".format(
                     atoms_position[i][j][2])) + ' '
-                sym_pos = temp4 + temp5 + temp6 + f'{fix[j][0]:.0f} {fix[j][1]:.0f} {fix[j][2]:.0f} '
+                sym_pos = temp4 + temp5 + temp6 + \
+                    f'{fix[j][0]:.0f} {fix[j][1]:.0f} {fix[j][2]:.0f} '
                 if set_vel:
                     sym_pos += f'v {vel[j][0]} {vel[j][1]} {vel[j][2]} '
                 if set_mag:
@@ -192,11 +181,8 @@ def write_input_stru_core(fd,
 @writer
 def write_abacus(fd,
                  atoms=None,
-                 pseudo_dir='./',
                  pp=None,
-                 basis_dir='./',
                  basis=None,
-                 offsite_basis_dir=None,
                  offsite_basis=None,
                  scaled=False,
                  set_vel=False,
@@ -228,11 +214,8 @@ def write_abacus(fd,
         write_input_stru_core(fd,
                               atoms,
                               pp,
-                              pseudo_dir,
                               basis,
-                              basis_dir,
                               offsite_basis,
-                              offsite_basis_dir,
                               coordinates_type,
                               atoms_list,
                               atoms_position,
@@ -247,7 +230,7 @@ def write_abacus(fd,
 def read_abacus(fd, ase=True):
     """Read structure information from abacus structure file"""
 
-    from ase.constraints import FixCartesian  
+    from ase.constraints import FixCartesian
 
     lines = fd.readlines()
     # initialize reading information
@@ -321,8 +304,8 @@ def read_abacus(fd, ase=True):
             [[float(temp[pos_start + 3 + i].split()[:3][j])
               for j in range(3)] for i in range(atom_number[atom_it])])
 
-        atom_appendix[atom_it] = [temp[pos_start + 3 + i].split()[3:] for i in range(atom_number[atom_it])]
-    
+        atom_appendix[atom_it] = [temp[pos_start + 3 + i].split()[3:]
+                                  for i in range(atom_number[atom_it])]
 
     # Reset structure information and return results
     # and parse appendix: m, v, mag(magmom), (not support angle1, angle2)
@@ -331,7 +314,8 @@ def read_abacus(fd, ase=True):
     fix_cart = []
     velocities = []
     magnetism = []
-    ci = -1 # fix ci atom
+    ci = -1  # fix ci atom
+
     def extract_appendix(start=0):
         xyz = ~np.array(atom_appendix[i][j][start:start+3]).astype('bool')
         vel = []
@@ -342,19 +326,24 @@ def read_abacus(fd, ase=True):
                 if len(atom_appendix[i][j]) > start+7:
                     if atom_appendix[i][j][start+7] in ['mag', 'magmom']:
                         if len(atom_appendix[i][j]) == start+9:
-                            warnings.warn("Non-colinear angle-settings are not yet supported for this interface.")
+                            warnings.warn(
+                                "Non-colinear angle-settings are not yet supported for this interface.")
                             mag = float(atom_appendix[i][j][start+8])
                         else:
-                            mag = list(map(float, atom_appendix[i][j][start+8:start+11]))
+                            mag = list(
+                                map(float, atom_appendix[i][j][start+8:start+11]))
             elif atom_appendix[i][j][start+3] in ['mag', 'magmom']:
                 if len(atom_appendix[i][j]) == start+5 or len(atom_appendix[i][j][start+5]) in ['v', 'vel', 'velocity']:
                     mag = float(atom_appendix[i][j][start+4])
                     if atom_appendix[i][j][start+5] in ['v', 'vel', 'velocity']:
-                        vel = list(map(float, atom_appendix[i][j][start+8:start+11]))
+                        vel = list(
+                            map(float, atom_appendix[i][j][start+8:start+11]))
                 else:
-                    mag = list(map(float, atom_appendix[i][j][start+4:start+7]))
+                    mag = list(
+                        map(float, atom_appendix[i][j][start+4:start+7]))
                     if atom_appendix[i][j][start+7] in ['v', 'vel', 'velocity']:
-                        vel = list(map(float, atom_appendix[i][j][start+8:start+11]))
+                        vel = list(
+                            map(float, atom_appendix[i][j][start+8:start+11]))
         return xyz, vel, mag
 
     for i in range(atom_species):
@@ -366,7 +355,7 @@ def read_abacus(fd, ase=True):
 
         for j in range(atom_number[i]):
             formula_positions.append(atom_positions[i][j])
-            
+
             # extract m
             # for ABACUS, 0: fix   1: move
             # for ASE,    0: move  1: fix
@@ -376,7 +365,7 @@ def read_abacus(fd, ase=True):
                 xyz, vel, mag = extract_appendix(1)
             elif atom_appendix[i][j][0] in [0, 1]:
                 xyz, vel, mag = extract_appendix(0)
-    
+
             fix_cart.append(FixCartesian(ci, xyz))
             velocities.append(vel)
             if mag:
@@ -384,31 +373,30 @@ def read_abacus(fd, ase=True):
             else:
                 magnetism.append(atom_magnetism[i])
 
-
     formula_cell = atom_lattice * atom_lattice_scale * Bohr
 
     if ase is True:
         if atom_coor == 'Direct':
             atoms = Atoms(symbols=formula_symbol,
-                         cell=formula_cell,
-                         scaled_positions=formula_positions,
-                         pbc=True)
+                          cell=formula_cell,
+                          scaled_positions=formula_positions,
+                          pbc=True)
 
         elif atom_coor == 'Cartesian':
             atoms = Atoms(symbols=formula_symbol,
-                         cell=formula_cell,
-                         positions=formula_positions,
-                         pbc=True)
+                          cell=formula_cell,
+                          positions=formula_positions,
+                          pbc=True)
 
         else:
             raise ValueError("atomic coordinate type is ERROR")
 
         if velocities:
             atoms.set_velocities(velocities)
-        
+
         atoms.set_initial_magnetic_moments(magnetism)
         atoms.set_constraint(fix_cart)
-        
+
         return atoms
 
     else:
@@ -420,15 +408,21 @@ def read_abacus(fd, ase=True):
                 atom_offsite_basis)
 
 # Read ABACUS results
+
+
 @reader
 def read_abacus_out(fd, index=-1):
+    # TODO: output for md, band, dos, ...
     cell = []
+    energy = None
     force = None
     stress = None
     for line in fd:
+        if 'Version' in line:
+            ver = 'ABACUS version: '+ ' '.join(line.split()[1:])
         if "TOTAL ATOM NUMBER" in line:
             natom = int(line.split()[-1])
-        #extract cell
+        # extract cell
         if "Volume (Bohr^3)" in line:
             V_b = float(line.split()[-1])
         if "Volume (A^3)" in line:
@@ -454,9 +448,12 @@ def read_abacus_out(fd, index=-1):
             for i in range(3):
                 sx, sy, sz = fd.readline().split()
                 stress[i] = [float(sx), float(sy), float(sz)]
+        # extract energy
+        if "final etot is" in line:
+            energy = float(line.split()[-2])
 
 
-if __name__ =='__main__':
+if __name__ == '__main__':
     file = r'C:\Users\YY.Ji\Desktop\running_cell-relax.log'
     with open(file, 'r') as fd:
         read_abacus_out(file)

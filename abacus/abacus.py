@@ -10,16 +10,19 @@ Modified on Wed Jun 03 23:00:00 2022
 @author: Ji Yu-yang
 """
 
+import os
 import subprocess
-from os.path import join
 import numpy as np
+
+from ase.io import write
 from ase.calculators.abacus.create_input import AbacusInput
-from ase.calculators.calculator import FileIOCalculator, all_changes  #Calculator
+from ase.calculators.calculator import FileIOCalculator  # Calculator
 
 
 class Abacus(AbacusInput, FileIOCalculator):
     # Initialize parameters and get some information -START-
     name = 'abacus'
+
     implemented_properties = ['energy', 'forces', 'fermi', 'stress']
 
     default_parameters = dict(calculation='scf',
@@ -58,27 +61,20 @@ class Abacus(AbacusInput, FileIOCalculator):
                                   atoms,
                                   **kwargs)
 
-        self.restart = restart
-        self.pseudo_dir = pseudo_dir
-        self.potential_name = potential_name
-        self.basis_dir = basis_dir
-        self.basis_name = basis_name
-        self.offsite_basis_dir = offsite_basis_dir
-        self.offsite_basis_name = offsite_basis_name
-        self.fix = fix
-        self.stru_filename = stru_filename
-        self.coordinates_type = coordinates_type
-
-        self.out_path = ''
-
-
-        if log_file is not None:
-            self.log_file = log_file
-
-        AbacusInput.set(self, **self.parameters)
-        AbacusInput.set(self, **kwargs)
+        self.command = command
+        self.txt = txt
 
     # Initialize parameters and get some information -END-
+
+    def set(self, **kwargs):
+        changed_parameters = FileIOCalculator.set(self, **kwargs)
+
+        if changed_parameters:
+            self.reset()
+        return changed_parameters
+
+    def set_atoms(self, atoms):
+        self.atoms = atoms
 
     def check_state(self, atoms):
         system_changes = FileIOCalculator.check_state(self, atoms)
@@ -88,25 +84,31 @@ class Abacus(AbacusInput, FileIOCalculator):
         return system_changes
 
     def initialize(self, atoms):
-        numbers = atoms.get_atomic_numbers().copy()
-        self.species = []
-        for a, Z in enumerate(numbers):
-            if Z not in self.species:
-                self.species.append(Z)
-        self.general_params["ntype"] = len(self.species)
+        numbers = np.unique(atoms.get_atomic_numbers())
+        self.system_params["ntype"] = len(numbers)
 
-    # Run abacus
-    def calculate(self,
-                  atoms=None,
-                  properties=None,
-                  system_changes=all_changes):
-        FileIOCalculator.calculate(self,
-                                   atoms,
-                                   properties,
-                                   system_changes)
+    def write_input(self, atoms, properties=None, system_changes=None):
+        FileIOCalculator.write_input(self, atoms, properties, system_changes)
+
+        if scaled is None:
+            scaled = np.all(atoms.get_pbc())
+
+        write(os.path.join(self.directory, 'STRU'), atoms, **self.parameters)
+
+        self.initialize(atoms)
+        AbacusInput.write_input(self, directory=self.directory)
+        AbacusInput.write_kpt(self, directory=self.directory)
+        AbacusInput.write_pp(
+            self, pp=self.parameters['pp'], directory=self.directory, pseudo_dir=self.parameters.pop('pseudo_dir', None))
+        if 'basis' in self.parameters.keys():
+            AbacusInput.write_orb(
+                self, basis=self.parameters['basis'], directory=self.directory, pseudo_dir=self.parameters.pop('basis_dir', None))
+        if 'offsite_basis' in self.parameters.keys():
+            AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, pseudo_dir=self.parameters.pop(
+                'offsite_basis_dir', None))
 
     def run(self):
-        with open(self.log_file, 'a') as f:
+        with open(self.txt, 'a') as f:
             run = subprocess.Popen(self.command,
                                    stderr=f,
                                    stdin=f,

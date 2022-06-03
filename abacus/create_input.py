@@ -7,10 +7,15 @@ Created on Sun Dec 16 17:02:37 2018
 Modified on Wed Jun 01 15:00:00 2022
 @author: Ji Yu-yang
 """
+
+import os
+import shutil
 from __future__ import print_function
 import warnings
-from os.path import join
+from os.path import join, exists
 import numpy as np
+
+from calculators import calculator
 # copyright © Key Lab of Quantum Information, CAS, China
 """This module defines an ASE interface to ABACUS
 
@@ -62,8 +67,6 @@ system_keys = [
 file_keys = [
     'stru_file',           # the filename of file containing atom positions
     'kpoint_file',         # the name of file containing k points
-    'pseudo_dir',          # the directory containing pseudo files
-    'orbital_dir',         # the directory containing orbital files
     # when the program needs to read files such as electron density(SPIN1_CHG) as a starting point, this variables tells the location of the files.
     'read_file_dir'
 ]
@@ -345,6 +348,19 @@ class AbacusInput:
 
     # environment variable for PP paths
     ABACUS_PP_PATH = 'ABACUS_PP_PATH'
+    if ABACUS_PP_PATH in os.environ:
+        pppaths = os.environ[ABACUS_PP_PATH]
+    else:
+        pppaths = './'
+
+    # environment variable for ORBITAL paths
+    ABACUS_ORBITAL_PATH = 'ABACUS_ORBITAL_PATH'
+    if ABACUS_ORBITAL_PATH in os.environ:
+        orbpaths = os.environ[ABACUS_ORBITAL_PATH]
+    else:
+        orbpaths = './'
+
+    abfspaths = './'
 
     # Initialize internal dictionary of input parameters to None  -START-
     def __init__(self, restart=None):
@@ -464,7 +480,7 @@ class AbacusInput:
     # Set the INPUT and KPT parameters  -END-
 
     # Write INPUT file  -START-
-    def write_input(self, directory='./', **kwargs):
+    def write_input(self, directory='./'):
         # TODO: process some parameters separated by ' ' (e.g. ocp_set, hubbard_u ...)
         with open(join(directory, 'INPUT'), 'w') as input_file:
             input_file.write('INPUT_PARAMETERS\n')
@@ -632,7 +648,7 @@ class AbacusInput:
     def write_kpt(self,
                   directory='./',
                   filename='KPT',
-                  **kwargs):
+                  ):
         k = self.kpt_params
         if self.elec_params['gamma_only'] is None:
             return warnings.warn(" 'gamma_only' parameter has not been set, "
@@ -696,3 +712,42 @@ class AbacusInput:
             raise ValueError("The value of kmode is not right, set to "
                              "Gamma, MP, Direct, Cartesian, or Line.")
     # Read KPT file  -END-
+
+    # Copy PP file -START-
+    def write_pp(self, pp=None, directory='./', pseudo_dir=None):
+        if pseudo_dir:
+            self.pppaths = pseudo_dir
+        for val in pp.values():
+            file = join(self.pppaths, val)
+            if not exists(join(directory, val)) and exists(file):
+                shutil.copy(file, directory)
+            else:
+                raise calculator.InputError(
+                    "Can't find pseudopotentials for ABACUS calculation")
+    # Copy PP file -END-
+
+    # Copy ORBITAL file -START-
+    def write_orb(self, basis=None, directory='./', basis_dir=None):
+        if basis_dir:
+            self.orbpaths = basis_dir
+        for val in basis.values():
+            file = join(self.orbpaths, val)
+            if not exists(join(directory, val)) and exists(file):
+                shutil.copy(file, directory)
+            else:
+                raise calculator.InputError(
+                    "Can't find basis for ABACUS-lcao calculation")
+    # Copy ORBITAL file -END-
+
+    # Copy ABFs file -START-
+    def write_abfs(self, offsite_basis=None, directory='./', offsite_basis_dir=None):
+        if offsite_basis_dir:
+            self.abfspaths = offsite_basis_dir
+        for val in offsite_basis.values():
+            file = join(self.abfspaths, val)
+            if not exists(join(directory, val)) and exists(file):
+                shutil.copy(file, directory)
+            else:
+                raise calculator.InputError(
+                    "Can't find Offsite-ABFs for ABACUS-exx calculation")
+    # Copy ORBITAL file -END-
