@@ -147,7 +147,7 @@ def write_input_stru_core(fd,
         fd.write(coordinates_type)
         fd.write('\n')
         fd.write('\n')
-        vel = stru.get_velocities()
+        vel = stru.get_velocities()   # velocity in unit A/fs ?
         mag = stru.get_initial_magnetic_moments()
         for i in range(len(atoms_list)):
             fd.write(atoms_list[i])
@@ -321,7 +321,7 @@ def read_abacus(fd, ase=True):
         vel = []
         mag = []
         if len(atom_appendix[i][j]) > start+3:
-            if atom_appendix[i][j][start+3] in ['v', 'vel', 'velocity']:
+            if atom_appendix[i][j][start+3] in ['v', 'vel', 'velocity']:   # velocity in unit A/fs ?
                 vel = list(map(float, atom_appendix[i][j][start+4:start+7]))
                 if len(atom_appendix[i][j]) > start+7:
                     if atom_appendix[i][j][start+7] in ['mag', 'magmom']:
@@ -413,47 +413,190 @@ def read_abacus(fd, ase=True):
 @reader
 def read_abacus_out(fd, index=-1):
     # TODO: output for md, band, dos, ...
-    cell = []
+
+    import re
+    from ase import Atom
+    from ase.cell import Cell
+    from ase.data import atomic_masses, atomic_numbers
+    from ase.calculators.singlepoint import SinglePointDFTCalculator, SinglePointKPoint
+
+    molecular_dynamics = False
+    image = []
+    scaled_position = None
+    position = None
     energy = None
     force = None
     stress = None
+    nbands = None
+    natom = None
+    nspin = None
+    nkstot = None
+    nkstot_ibz = None
+    ibzkpts = None
+    kpts = None
+    eigenvalues, occupations = [], []
+
     for line in fd:
         if 'Version' in line:
             ver = 'ABACUS version: '+ ' '.join(line.split()[1:])
+
+        #extract total numbers
         if "TOTAL ATOM NUMBER" in line:
             natom = int(line.split()[-1])
+
+        #extract position
+        if 'DIRECT COORDINATES' in line and not molecular_dynamics:
+            scaled_position = [] 
+            next(fd)
+            atoms = Atoms()
+            for i in range(natom):
+                at, x, y, z, mag, vx, vy, vz = next(fd).split()  # velocity in unit A/fs ?
+                at = re.match('[a-zA-Z]+', at.split('_')[-1]).group()
+                scaled_position.append(list(map(float, [x, y, z])))
+                momentum = atomic_masses[atomic_numbers[at]]*np.array([vx, vy, vz], dtype=float)
+                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag))        
+        if 'CARTESIAN COORDINATES' in line and not molecular_dynamics:
+            position = []
+            next(fd)
+            atoms = Atoms()
+            for i in range(natom):
+                at, x, y, z, mag, vx, vy, vz = next(fd).split()  # velocity in unit A/fs ?
+                at = re.match('[a-zA-Z]+', at.split('_')[-1]).group()
+                position.append(list(map(float, [x, y, z])))
+                momentum = atomic_masses[atomic_numbers[at]]*np.array([vx, vy, vz], dtype=float)
+                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag))
+
         # extract cell
         if "Volume (Bohr^3)" in line:
             V_b = float(line.split()[-1])
         if "Volume (A^3)" in line:
             V_a = float(line.split()[-1])
-        if "Lattice vectors: (Cartesian coordinate: in unit of a_0)" in line:
+        if "Lattice vectors: (Cartesian coordinate: in unit of a_0)" in line and not molecular_dynamics:
+            cell = []
             a_0 = pow(V_b/V_a, 1/3)*Bohr
             for i in range(3):
-                ax, ay, az = fd.readline().split()
+                ax, ay, az = next(fd).split()
                 cell.append([float(ax)*a_0, float(ay)*a_0, float(az)*a_0])
+            cell = Cell(cell)
+            atoms.set_cell(cell)
+            if scaled_position:
+                position = cell.cartesian_positions(scaled_position)
+            else:
+                position = np.array(position)*a_0
+            atoms.set_positions(position)
+
+        # extract nbands, nspin and nkstot/nkstot_ibz
+        if 'NBANDS' in line:
+            nbands = int(line.split()[-1])
+
+        if 'STEP OF MOLECULAR DYNAMICS' in line:
+            molecular_dynamics = True
+
+        # extract ibzkpts
+        if 'SETUP K-POINTS' in line:
+            nspin = int(next(fd).split()[-1])
+            sline = next(fd).split()
+            if sline[0] == 'nkstot':
+                nkstot = int(sline[-1])
+            else:
+                nkstot = int(next(fd).split()[-1])
+            sline = next(fd).split()
+            if sline and sline[0] == 'nkstot_ibz':
+                nkstot_ibz = int(sline[0])
+            next(fd)
+            nks = nkstot_ibz if nkstot_ibz else nkstot
+            totline = (nbands+2)*nks
+            ibzkpts = []
+            weights = []
+            for i in range(nks):
+                kindex, kx, ky, kz, wei = next(fd).split()
+                ibzkpts.append(list(map(float, [kx, ky, kz])))
+                weights.append(float(wei))
+
+        # extract bands and occupations
+        def _set_eig_occ():
+            eigs, occs = [], []
+            eigsfull, occsfull = [], []
+            ik, ib = 0, 0
+            for i in range(totline):
+                if i%(nbands+2) == 0:
+                    ik += 1
+                    next(fd)
+                elif (i+1)%(nbands+2) == 0:
+                    ik = 0
+                    next(fd)
+                    continue
+                else:
+                    eig, occ = next(fd).split()[1:]
+                    eigs.append(float(eig))
+                    occs.append(float(occ))
+                    ib += 1
+                    if ib == nbands:
+                        print(len(eigs))
+                        eigsfull.append(eigs)
+                        occsfull.append(occs)
+                        ib = 0
+                        eigs, occs = [], []
+
+            return eigsfull, occsfull
+
+        if 'STATE ENERGY(eV) AND OCCUPATIONS    NSPIN == 1' in line:
+            eigs, occs = _set_eig_occ()
+            eigenvalues.append(eigs)
+            occupations.append(occs)
+            if eigenvalues and occupations:
+                kpts = []
+                for w, k, e, o in zip(weights, ibzkpts, eigenvalues[0], occupations[0]):
+                    kpt = SinglePointKPoint(w, 0, k, e, o)
+                    kpts.append(kpt)
+
+        if 'STATE ENERGY(eV) AND OCCUPATIONS    NSPIN == 2' in line:
+            eigenvalues, occupations = [], []
+            if 'SPIN UP' in next(fd):
+                eigs, occs = _set_eig_occ()
+                eigenvalues.append(eigs)
+                occupations.append(occs)
+            if 'SPIN DOWN' in next(fd):
+                eigs, occs = _set_eig_occ()
+                eigenvalues.append(eigs)
+                occupations.append(occs)
+            if eigenvalues and occupations:
+                kpts = []
+                for s in range(nspin):
+                    for w, k, e, o in zip(weights, ibzkpts, eigenvalues[s], occupations[s]):
+                        kpt = SinglePointKPoint(w, s, k, e, o)
+                        kpts.append(kpt)
+
         # extract force
         if "TOTAL-FORCE (eV/Angstrom)" in line:
             force = np.zeros((natom, 3))
             for i in range(4):
-                fd.readline()
+                next(fd)
             for i in range(natom):
-                element, fx, fy, fz = fd.readline().split()
+                element, fx, fy, fz = next(fd).split()
                 force[i] = [float(fx), float(fy), float(fz)]
+        
         # extract stress
         if "TOTAL-STRESS (KBAR)" in line:
             stress = np.zeros((3, 3))
             for i in range(3):
-                fd.readline()
+                next(fd)
             for i in range(3):
-                sx, sy, sz = fd.readline().split()
+                sx, sy, sz = next(fd).split()
                 stress[i] = [float(sx), float(sy), float(sz)]
+        
+        # extract efermi
+        if "E_Fermi" in line:
+            efermi = float(line.split()[-1])
+
         # extract energy
         if "final etot is" in line:
             energy = float(line.split()[-2])
+    
+    calc = SinglePointDFTCalculator(atoms, energy=energy,
+                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
+    if kpts:
+        calc.kpts = kpts
+    atoms.calc = calc
 
-
-if __name__ == '__main__':
-    file = r'C:\Users\YY.Ji\Desktop\running_cell-relax.log'
-    with open(file, 'r') as fd:
-        read_abacus_out(file)
+    yield atoms
