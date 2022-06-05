@@ -14,10 +14,12 @@ import os
 import subprocess
 import numpy as np
 
-from ase.io import write
+from ase.io import write, read
 from ase.calculators.abacus.create_input import AbacusInput
-from ase.calculators.calculator import FileIOCalculator  # Calculator
+from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent
 
+error_template = 'Property "%s" not available. Please try running ABACUS\n' \
+                 'first by calling Atoms.get_potential_energy().'
 
 class Abacus(AbacusInput, FileIOCalculator):
     # Initialize parameters and get some information -START-
@@ -107,6 +109,42 @@ class Abacus(AbacusInput, FileIOCalculator):
             AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, pseudo_dir=self.parameters.pop(
                 'offsite_basis_dir', None))
 
+    def read_results(self):
+        out_dir = 'OUT.ABACUS' if 'suffix' not in self.parameters.keys() else self.parameters['suffix']
+        cal = 'scf' if 'calculation' not in self.parameters.keys() else self.parameters['calculation']
+        output = read(os.path.join(out_dir, f'running_{cal}.log'))
+        self.calc = output.calc
+        self.results = output.calc.results
+
+    def get_fermi_level(self):
+        if self.calc is None:
+            raise PropertyNotPresent(error_template % 'Fermi level')
+        return self.calc.get_fermi_level()
+
+    def get_ibz_k_points(self):
+        if self.calc is None:
+            raise PropertyNotPresent(error_template % 'IBZ k-points')
+        ibzkpts = self.calc.get_ibz_k_points()
+        return ibzkpts
+
+    def get_k_point_weights(self):
+        if self.calc is None:
+            raise PropertyNotPresent(error_template % 'K-point weights')
+        k_point_weights = self.calc.get_k_point_weights()
+        return k_point_weights
+
+    def get_eigenvalues(self, **kwargs):
+        if self.calc is None:
+            raise PropertyNotPresent(error_template % 'Eigenvalues')
+        eigenvalues = self.calc.get_eigenvalues(**kwargs)
+        return eigenvalues
+
+    def get_number_of_spins(self):
+        if self.calc is None:
+            raise PropertyNotPresent(error_template % 'Number of spins')
+        nspins = self.calc.get_number_of_spins()
+        return nspins
+
     def run(self):
         with open(self.txt, 'a') as f:
             run = subprocess.Popen(self.command,
@@ -116,33 +154,3 @@ class Abacus(AbacusInput, FileIOCalculator):
                                    cwd=self.directory,
                                    shell=True)
             return run.communicate()
-
-    def get_fermi_level(self):
-        return self.results['fermi']
-
-    """
-    def get_potential_energy(self, atoms):
-        return self.get_property('energy', atoms)
-
-    def get_forces(self, atoms):
-        return self.get_property('forces', atoms)
-
-    def get_property(self, name, atoms = None, allow_calculation = True):
-        if atoms is None:
-            atoms = self.atoms
-            system_changes = []
-        else:
-            system_changes = self.check_state(atoms)
-            if system_changes:
-                self.reset()
-        if name not in self.results:
-            if not allow_calculation:
-                return None
-            self.calculate(atoms)
-        result = self.results[name]
-        return result
-    """
-
-
-if __name__ == "__main__":
-    pass
