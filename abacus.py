@@ -412,18 +412,44 @@ def read_abacus(fd, ase=True):
 
 @reader
 def read_abacus_out(fd, index=-1):
-    # TODO: output for md, band, dos, ...
-
-    import re
+    """Import ABACUS output files with all data available, i.e.
+    relaxations, MD information, force information ..."""
+    import re, os
     from ase import Atom
     from ase.cell import Cell
     from ase.data import atomic_masses, atomic_numbers
     from ase.calculators.singlepoint import SinglePointDFTCalculator, SinglePointKPoint
 
+    def _set_eig_occ():
+        eigs, occs = [], []
+        eigsfull, occsfull = [], []
+        ik, ib = 0, 0
+        for i in range(totline):
+            if i%(nbands+2) == 0:
+                ik += 1
+                next(fd)
+            elif (i+1)%(nbands+2) == 0:
+                ik = 0
+                next(fd)
+                continue
+            else:
+                eig, occ = next(fd).split()[1:]
+                eigs.append(float(eig))
+                occs.append(float(occ))
+                ib += 1
+                if ib == nbands:
+                    eigsfull.append(eigs)
+                    occsfull.append(occs)
+                    ib = 0
+                    eigs, occs = [], []
+
+        return eigsfull, occsfull
+
     molecular_dynamics = False
-    image = []
+    images = []
     scaled_position = None
     position = None
+    efermi = None
     energy = None
     force = None
     stress = None
@@ -435,6 +461,9 @@ def read_abacus_out(fd, index=-1):
     ibzkpts = None
     kpts = None
     eigenvalues, occupations = [], []
+
+    # find flag
+    k_find = False
 
     for line in fd:
         if 'Version' in line:
@@ -454,7 +483,7 @@ def read_abacus_out(fd, index=-1):
                 at = re.match('[a-zA-Z]+', at.split('_')[-1]).group()
                 scaled_position.append(list(map(float, [x, y, z])))
                 momentum = atomic_masses[atomic_numbers[at]]*np.array([vx, vy, vz], dtype=float)
-                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag))        
+                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag))     
         if 'CARTESIAN COORDINATES' in line and not molecular_dynamics:
             position = []
             next(fd)
@@ -464,12 +493,12 @@ def read_abacus_out(fd, index=-1):
                 at = re.match('[a-zA-Z]+', at.split('_')[-1]).group()
                 position.append(list(map(float, [x, y, z])))
                 momentum = atomic_masses[atomic_numbers[at]]*np.array([vx, vy, vz], dtype=float)
-                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag))
+                atoms.append(Atom(symbol=at, momentum=momentum, magmom=mag)) 
 
         # extract cell
-        if "Volume (Bohr^3)" in line:
+        if "Volume (Bohr^3)" in line and not molecular_dynamics:
             V_b = float(line.split()[-1])
-        if "Volume (A^3)" in line:
+        if "Volume (A^3)" in line and not molecular_dynamics:
             V_a = float(line.split()[-1])
         if "Lattice vectors: (Cartesian coordinate: in unit of a_0)" in line and not molecular_dynamics:
             cell = []
@@ -478,22 +507,28 @@ def read_abacus_out(fd, index=-1):
                 ax, ay, az = next(fd).split()
                 cell.append([float(ax)*a_0, float(ay)*a_0, float(az)*a_0])
             cell = Cell(cell)
-            atoms.set_cell(cell)
             if scaled_position:
                 position = cell.cartesian_positions(scaled_position)
             else:
                 position = np.array(position)*a_0
-            atoms.set_positions(position)
 
         # extract nbands, nspin and nkstot/nkstot_ibz
         if 'NBANDS' in line:
             nbands = int(line.split()[-1])
 
+        # extract md information
         if 'STEP OF MOLECULAR DYNAMICS' in line:
             molecular_dynamics = True
+            md_step = int(line.split()[-1])
+            md_stru_file = os.path.join(os.path.dirname(fd.name), f'STRU_MD_{md_step}')
+            if os.path.exists(md_stru_file):
+                md_atoms = read_abacus(open(md_stru_file, 'r'))
+                images.append(md_atoms)
+            else:
+                raise FileNotFoundError(f"Can't find {md_stru_file}")
 
         # extract ibzkpts
-        if 'SETUP K-POINTS' in line:
+        if 'SETUP K-POINTS' in line and not k_find:
             nspin = int(next(fd).split()[-1])
             sline = next(fd).split()
             if sline[0] == 'nkstot':
@@ -512,34 +547,9 @@ def read_abacus_out(fd, index=-1):
                 kindex, kx, ky, kz, wei = next(fd).split()
                 ibzkpts.append(list(map(float, [kx, ky, kz])))
                 weights.append(float(wei))
+            k_find = True
 
         # extract bands and occupations
-        def _set_eig_occ():
-            eigs, occs = [], []
-            eigsfull, occsfull = [], []
-            ik, ib = 0, 0
-            for i in range(totline):
-                if i%(nbands+2) == 0:
-                    ik += 1
-                    next(fd)
-                elif (i+1)%(nbands+2) == 0:
-                    ik = 0
-                    next(fd)
-                    continue
-                else:
-                    eig, occ = next(fd).split()[1:]
-                    eigs.append(float(eig))
-                    occs.append(float(occ))
-                    ib += 1
-                    if ib == nbands:
-                        print(len(eigs))
-                        eigsfull.append(eigs)
-                        occsfull.append(occs)
-                        ib = 0
-                        eigs, occs = [], []
-
-            return eigsfull, occsfull
-
         if 'STATE ENERGY(eV) AND OCCUPATIONS    NSPIN == 1' in line:
             eigs, occs = _set_eig_occ()
             eigenvalues.append(eigs)
@@ -584,6 +594,20 @@ def read_abacus_out(fd, index=-1):
             for i in range(3):
                 sx, sy, sz = next(fd).split()
                 stress[i] = [float(sx), float(sy), float(sz)]
+        elif "MD STRESS (KBAR)" in line:
+            stress = np.zeros((3, 3))
+            for i in range(3):
+                next(fd)
+            for i in range(3):
+                sx, sy, sz = next(fd).split()
+                stress[i] = [float(sx), float(sy), float(sz)]
+            if nkstot_ibz:
+                images[-1].calc = SinglePointDFTCalculator(atoms, energy=energy,
+                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
+            elif nkstot:
+                images[-1].calc = SinglePointDFTCalculator(atoms, energy=energy,
+                                        forces=force, stress=stress, efermi=efermi, bzkpts=ibzkpts)
+            images[-1].calc.name = 'Abacus'
         
         # extract efermi
         if "E_Fermi" in line:
@@ -592,11 +616,49 @@ def read_abacus_out(fd, index=-1):
         # extract energy
         if "final etot is" in line:
             energy = float(line.split()[-2])
-    
-    calc = SinglePointDFTCalculator(atoms, energy=energy,
-                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
-    if kpts:
-        calc.kpts = kpts
-    atoms.calc = calc
 
-    yield atoms
+    fd.close()
+    if not molecular_dynamics:
+        atoms.set_cell(cell)
+        atoms.set_positions(position)
+        if nkstot_ibz:
+            calc = SinglePointDFTCalculator(atoms, energy=energy,
+                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
+        elif nkstot:
+            calc = SinglePointDFTCalculator(atoms, energy=energy,
+                                        forces=force, stress=stress, efermi=efermi, bzkpts=ibzkpts)
+
+        if kpts:
+            calc.kpts = kpts
+        calc.name = 'Abacus'
+        atoms.calc = calc
+
+        return atoms
+    else:
+        # return requested images, code borrowed from ase/io/trajectory.py
+        if isinstance(index, int):
+            return images[index]
+        else:
+            step = index.step or 1
+            if step > 0:
+                start = index.start or 0
+                if start < 0:
+                    start += len(images)
+                stop = index.stop or len(images)
+                if stop < 0:
+                    stop += len(images)
+            else:
+                if index.start is None:
+                    start = len(images) - 1
+                else:
+                    start = index.start
+                    if start < 0:
+                        start += len(images)
+                if index.stop is None:
+                    stop = -1
+                else:
+                    stop = index.stop
+                    if stop < 0:
+                        stop += len(images)
+            return [images[i] for i in range(start, stop, step)]
+    
