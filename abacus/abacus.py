@@ -21,6 +21,7 @@ from ase.calculators.calculator import FileIOCalculator, PropertyNotPresent
 error_template = 'Property "%s" not available. Please try running ABACUS\n' \
                  'first by calling Atoms.get_potential_energy().'
 
+
 class Abacus(AbacusInput, FileIOCalculator):
     # Initialize parameters and get some information -START-
     name = 'abacus'
@@ -110,8 +111,10 @@ class Abacus(AbacusInput, FileIOCalculator):
                 'offsite_basis_dir', None))
 
     def read_results(self):
-        out_dir = 'OUT.ABACUS' if 'suffix' not in self.parameters.keys() else self.parameters['suffix']
-        cal = 'scf' if 'calculation' not in self.parameters.keys() else self.parameters['calculation']
+        out_dir = 'OUT.ABACUS' if 'suffix' not in self.parameters.keys(
+        ) else self.parameters['suffix']
+        cal = 'scf' if 'calculation' not in self.parameters.keys(
+        ) else self.parameters['calculation']
         output = read(os.path.join(out_dir, f'running_{cal}.log'))
         self.calc = output.calc
         self.results = output.calc.results
@@ -144,6 +147,11 @@ class Abacus(AbacusInput, FileIOCalculator):
             raise PropertyNotPresent(error_template % 'Number of spins')
         nspins = self.calc.get_number_of_spins()
         return nspins
+
+    def band_structure(self, efermi=0.0):
+        """Create band-structure object for plotting."""
+        from ase.spectrum.band_structure import get_band_structure
+        return get_band_structure(calc=self, reference=efermi)
 
     def run(self):
         with open(self.txt, 'a') as f:

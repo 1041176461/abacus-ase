@@ -386,7 +386,7 @@ def read_abacus(fd, ase=True):
         elif atom_coor == 'Cartesian':
             atoms = Atoms(symbols=formula_symbol,
                           cell=formula_cell,
-                          positions=formula_positions,
+                          positions=np.array(formula_positions)*atom_lattice_scale*Bohr,
                           pbc=True)
 
         else:

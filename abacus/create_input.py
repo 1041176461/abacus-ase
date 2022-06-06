@@ -667,8 +667,7 @@ class AbacusInput:
                 kpoint.write('%s\n' % str(k['knumber']))
                 kpoint.write('%s\n' % str(k['kmode']))
                 if k['kmode'] in ['Gamma', 'MP']:
-                    for n in range(len(k['kpts'])):
-                        kpoint.write('%s  ' % str(k['kpts'][n]))
+                    kpoint.write(' '.join(k['kpts'])+' '+' '.join(k['koffset']))
 
                 elif k['kmode'] in ['Direct', 'Cartesian', 'Line']:
                     for n in range(len(k['kpts'])):
