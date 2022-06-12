@@ -133,9 +133,9 @@ class Abacus(AbacusInput, FileIOCalculator):
             self, pp=self.parameters['pp'], directory=self.directory, pseudo_dir=self.parameters.pop('pseudo_dir', None))
         if 'basis' in self.parameters.keys():
             AbacusInput.write_orb(
-                self, basis=self.parameters['basis'], directory=self.directory, pseudo_dir=self.parameters.pop('basis_dir', None))
+                self, basis=self.parameters['basis'], directory=self.directory, basis_dir=self.parameters.pop('basis_dir', None))
         if 'offsite_basis' in self.parameters.keys():
-            AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, pseudo_dir=self.parameters.pop(
+            AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, offsite_basis_dir=self.parameters.pop(
                 'offsite_basis_dir', None))
 
         write(os.path.join(self.directory, 'STRU'), atoms, format='abacus', pp=self.parameters['pp'], basis=self.parameters.pop('basis', None),

@@ -475,7 +475,7 @@ class AbacusInput:
                 self.isol_params[key] = kwargs[key]
             elif key in self.kpt_params:
                 self.kpt_params[key] = kwargs[key]
-            elif key in ['pp', 'basis']:
+            elif key in ['pp', 'basis', 'pseudo_dir', 'basis_dir', 'offsite_basis_dir']:
                 continue
             else:
                 raise TypeError('Parameter not defined:  ' + key)
@@ -487,7 +487,6 @@ class AbacusInput:
         with open(join(directory, 'INPUT'), 'w') as input_file:
             input_file.write('INPUT_PARAMETERS\n')
             input_file.write('# Created by Atomic Simulation Enviroment\n')
-            print(self.system_params)
             for key, val in self.system_params.items():
                 if val is not None:
                     params = str(key) + ' ' * (20 - len(key)) + str(val)
@@ -653,24 +652,21 @@ class AbacusInput:
                   filename='KPT',
                   ):
         k = self.kpt_params
-        if self.elec_params['gamma_only'] is None:
-            return warnings.warn(" 'gamma_only' parameter has not been set, "
-                                 "please set it to 0 or 1")
 
-        elif self.elec_params['gamma_only'] == 1:
+        if self.elec_params['gamma_only'] == 1:
             with open(join(directory, filename), 'w') as kpoint:
                 kpoint.write('K_POINTS\n')
                 kpoint.write('0\n')
                 kpoint.write('Gamma\n')
                 kpoint.write('1 1 1 0 0 0')
 
-        elif self.elec_params['gamma_only'] == 0:
+        else:
             with open(join(directory, filename), 'w') as kpoint:
                 kpoint.write('K_POINTS\n')
                 kpoint.write('%s\n' % str(k['knumber']))
                 kpoint.write('%s\n' % str(k['kmode']))
                 if k['kmode'] in ['Gamma', 'MP']:
-                    kpoint.write(' '.join(k['kpts'])+' '+' '.join(k['koffset']))
+                    kpoint.write(' '.join(map(str, k['kpts']))+' '+' '.join(map(str, k['koffset'])))
 
                 elif k['kmode'] in ['Direct', 'Cartesian', 'Line']:
                     for n in range(len(k['kpts'])):
@@ -681,9 +677,6 @@ class AbacusInput:
                 else:
                     raise ValueError("The value of kmode is not right, set to "
                                      "Gamma, MP, Direct, Cartesian, or Line.")
-        else:
-            return warnings.warn("The value of gamma_only is not right, "
-                                 "please set it to 0 or 1")
     # Write KPT  -END-
 
     # Read KPT file  -START-
@@ -723,6 +716,8 @@ class AbacusInput:
             file = join(self.pppaths, val)
             if not exists(join(directory, val)) and exists(file):
                 shutil.copy(file, directory)
+            elif exists(join(directory, val)):
+                continue
             else:
                 raise calculator.InputError(
                     "Can't find pseudopotentials for ABACUS calculation")
@@ -736,6 +731,8 @@ class AbacusInput:
             file = join(self.orbpaths, val)
             if not exists(join(directory, val)) and exists(file):
                 shutil.copy(file, directory)
+            elif exists(join(directory, val)):
+                continue
             else:
                 raise calculator.InputError(
                     "Can't find basis for ABACUS-lcao calculation")
@@ -749,6 +746,8 @@ class AbacusInput:
             file = join(self.abfspaths, val)
             if not exists(join(directory, val)) and exists(file):
                 shutil.copy(file, directory)
+            elif exists(join(directory, val)):
+                continue
             else:
                 raise calculator.InputError(
                     "Can't find Offsite-ABFs for ABACUS-exx calculation")
