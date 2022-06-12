@@ -29,5 +29,4 @@ For more tutorials for ASE, please see [Atomic Simulation Environment](https://w
 3. Add abacus-related codes to 'calculator.py' under `ase.calculator` folder and to 'formats.py' under `ase.io` folder, you'd better not override these two files directly using 'calculator.py' and 'formats.py' provided here, due to version differences
 
 ## Known issues
-1. Because of my ability is limited, only partial input parameters of ABACUS can be parsed, if you want to use ASE to generate ABACUS 'INPUT' file, there will be something wrong.
-2. When using `read(filename='running_md.log',  index=':', format='abacus-out')` to parse MD information, an `ValueError: not enough values to unpack (expected 4, got 3)` may be reported. This is because two or three force strings are concatenated, e.g. 'C4       -8083.87938669  -7537.22788338+15786.10036084'. One can use ' +'(' -') to replace '+'('-') in 'running_md.log'.
+1. When using `read(filename='running_md.log',  index=':', format='abacus-out')` to parse MD information, an `ValueError: not enough values to unpack (expected 4, got 3)` may be reported. This is because two or three force strings are concatenated, e.g. 'C4       -8083.87938669  -7537.22788338+15786.10036084'. One can use ' +'(' -') to replace '+'('-') in 'running_md.log'.
