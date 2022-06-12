@@ -8,14 +8,14 @@ Modified on Wed Jun 01 15:00:00 2022
 @author: Ji Yu-yang
 """
 
+from __future__ import print_function
 import os
 import shutil
-from __future__ import print_function
 import warnings
 from os.path import join, exists
 import numpy as np
 
-from calculators import calculator
+from ase.calculators import calculator
 # copyright © Key Lab of Quantum Information, CAS, China
 """This module defines an ASE interface to ABACUS
 

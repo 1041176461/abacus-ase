@@ -90,7 +90,7 @@ class Abacus(AbacusInput, FileIOCalculator):
         numbers = np.unique(atoms.get_atomic_numbers())
         self.system_params["ntype"] = len(numbers)
 
-    def write_input(self, atoms, properties=None, system_changes=None):
+    def write_input(self, atoms, properties=None, system_changes=None, scaled=None):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
 
         if scaled is None:
