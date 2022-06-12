@@ -70,11 +70,41 @@ class Abacus(AbacusInput, FileIOCalculator):
     # Initialize parameters and get some information -END-
 
     def set(self, **kwargs):
-        changed_parameters = FileIOCalculator.set(self, **kwargs)
+        """Override the set function, to test for changes in the
+        Vasp Calculator, then call the create_input.set()
+        on remaining inputs for VASP specific keys.
 
+        Allows for setting ``label``, ``directory`` and ``txt``
+        without resetting the results in the calculator.
+        """
+        changed_parameters = {}
+
+        if 'label' in kwargs:
+            self.label = kwargs.pop('label')
+
+        if 'directory' in kwargs:
+            # str() call to deal with pathlib objects
+            self.directory = str(kwargs.pop('directory'))
+
+        if 'txt' in kwargs:
+            self.txt = kwargs.pop('txt')
+
+        if 'atoms' in kwargs:
+            atoms = kwargs.pop('atoms')
+            self.atoms = atoms  # Resets results
+
+        if 'command' in kwargs:
+            self.command = kwargs.pop('command')
+
+        changed_parameters.update(FileIOCalculator.set(self, **kwargs))
+
+        # We might at some point add more to changed parameters, or use it
         if changed_parameters:
-            self.reset()
-        return changed_parameters
+            self.reset()  # We don't want to clear atoms
+        if kwargs:
+            # If we make any changes to Vasp input, we always reset
+            AbacusInput.set(self, **kwargs)
+            self.results.clear()
 
     def set_atoms(self, atoms):
         self.atoms = atoms
@@ -90,16 +120,14 @@ class Abacus(AbacusInput, FileIOCalculator):
         numbers = np.unique(atoms.get_atomic_numbers())
         self.system_params["ntype"] = len(numbers)
 
-    def write_input(self, atoms, properties=None, system_changes=None, scaled=None):
+    def write_input(self, atoms, properties=None, system_changes=None, scaled=None, set_vel=False, set_mag=False):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
 
         if scaled is None:
             scaled = np.all(atoms.get_pbc())
 
-        write(os.path.join(self.directory, 'STRU'), atoms, **self.parameters)
-
         self.initialize(atoms)
-        AbacusInput.write_input(self, directory=self.directory)
+        AbacusInput.write_input_core(self, directory=self.directory)
         AbacusInput.write_kpt(self, directory=self.directory)
         AbacusInput.write_pp(
             self, pp=self.parameters['pp'], directory=self.directory, pseudo_dir=self.parameters.pop('pseudo_dir', None))
@@ -109,6 +137,9 @@ class Abacus(AbacusInput, FileIOCalculator):
         if 'offsite_basis' in self.parameters.keys():
             AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, pseudo_dir=self.parameters.pop(
                 'offsite_basis_dir', None))
+
+        write(os.path.join(self.directory, 'STRU'), atoms, format='abacus', pp=self.parameters['pp'], basis=self.parameters.pop('basis', None),
+              offsite_basis=self.parameters.pop('offsite_basis', None), scaled=scaled)
 
     def read_results(self):
         out_dir = 'OUT.ABACUS' if 'suffix' not in self.parameters.keys(

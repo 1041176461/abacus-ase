@@ -475,16 +475,19 @@ class AbacusInput:
                 self.isol_params[key] = kwargs[key]
             elif key in self.kpt_params:
                 self.kpt_params[key] = kwargs[key]
+            elif key in ['pp', 'basis']:
+                continue
             else:
                 raise TypeError('Parameter not defined:  ' + key)
     # Set the INPUT and KPT parameters  -END-
 
     # Write INPUT file  -START-
-    def write_input(self, directory='./'):
+    def write_input_core(self, directory='./'):
         # TODO: process some parameters separated by ' ' (e.g. ocp_set, hubbard_u ...)
         with open(join(directory, 'INPUT'), 'w') as input_file:
             input_file.write('INPUT_PARAMETERS\n')
             input_file.write('# Created by Atomic Simulation Enviroment\n')
+            print(self.system_params)
             for key, val in self.system_params.items():
                 if val is not None:
                     params = str(key) + ' ' * (20 - len(key)) + str(val)
