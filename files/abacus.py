@@ -361,6 +361,8 @@ def read_abacus(fd, ase=True):
             # for ABACUS, 0: fix   1: move
             # for ASE,    0: move  1: fix
             xyz = np.array([0, 0, 0])
+            vel = []
+            mag = []
             ci += 1
             if atom_appendix[i][j][0] == 'm':
                 xyz, vel, mag = extract_appendix(1)
@@ -368,7 +370,9 @@ def read_abacus(fd, ase=True):
                 xyz, vel, mag = extract_appendix(0)
 
             fix_cart.append(FixCartesian(ci, xyz))
-            velocities.append(vel)
+            if vel:
+                velocities.append(vel)
+
             if mag:
                 magnetism.append(mag)
             else:
