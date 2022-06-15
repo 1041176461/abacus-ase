@@ -608,10 +608,9 @@ def read_abacus_out(fd, index=-1):
 
         # extract energy(Ry), potential(Ry), kinetic(Ry), temperature(K) and pressure(KBAR) for MD
         if "Energy              Potential           Kinetic             Temperature         Pressure (KBAR)" in line:
-            md_e, md_pot, md_kin, md_tem, md_pre = map(float, next(fd).split())
+            md_e, md_pot = map(float, next(fd).split())[:2]
             md_e *= Hartree
             md_pot *= Hartree
-            md_kin *= Hartree
 
         # extract stress
         if "TOTAL-STRESS (KBAR)" in line:
