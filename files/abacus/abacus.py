@@ -40,7 +40,7 @@ class Abacus(AbacusInput, FileIOCalculator):
 
     def __init__(self,
                  restart=None,
-                 ignore_bad_restart_file=False,
+                 ignore_bad_restart_file=FileIOCalculator._deprecated,
                  directory='.',
                  label='abacus',
                  atoms=None,
@@ -146,7 +146,8 @@ class Abacus(AbacusInput, FileIOCalculator):
         ) else self.parameters['suffix']
         cal = 'scf' if 'calculation' not in self.parameters.keys(
         ) else self.parameters['calculation']
-        output = read(os.path.join(out_dir, f'running_{cal}.log'))
+        output = read(os.path.join(
+            out_dir, f'running_{cal}.log'), format='abacus-out')
         self.calc = output.calc
         self.results = output.calc.results
 

@@ -13,7 +13,7 @@ import numpy as np
 
 from ase import Atoms
 from ase.utils import reader, writer
-from ase.units import Bohr
+from ase.units import Bohr, Hartree
 
 
 def judge_exist_stru(stru=None):
@@ -390,7 +390,8 @@ def read_abacus(fd, ase=True):
         elif atom_coor == 'Cartesian':
             atoms = Atoms(symbols=formula_symbol,
                           cell=formula_cell,
-                          positions=np.array(formula_positions)*atom_lattice_scale*Bohr,
+                          positions=np.array(
+                              formula_positions)*atom_lattice_scale*Bohr,
                           pbc=True)
 
         else:
@@ -605,6 +606,13 @@ def read_abacus_out(fd, index=-1):
                 element, fx, fy, fz = next(fd).split()
                 force[i] = [float(fx), float(fy), float(fz)]
 
+        # extract energy(Ry), potential(Ry), kinetic(Ry), temperature(K) and pressure(KBAR) for MD
+        if "Energy              Potential           Kinetic             Temperature         Pressure (KBAR)" in line:
+            md_e, md_pot, md_kin, md_tem, md_pre = map(float, next(fd).split())
+            md_e *= Hartree
+            md_pot *= Hartree
+            md_kin *= Hartree
+
         # extract stress
         if "TOTAL-STRESS (KBAR)" in line:
             stress = np.zeros((3, 3))
@@ -621,7 +629,7 @@ def read_abacus_out(fd, index=-1):
                 sx, sy, sz = next(fd).split()
                 stress[i] = [float(sx), float(sy), float(sz)]
             # if nkstot_ibz:
-            images[-1].calc = SinglePointDFTCalculator(atoms, energy=energy,
+            images[-1].calc = SinglePointDFTCalculator(atoms, energy=md_e, free_energy=md_pot,
                                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
             # elif nkstot:
             #     images[-1].calc = SinglePointDFTCalculator(atoms, energy=energy,
