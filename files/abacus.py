@@ -536,11 +536,17 @@ def read_abacus_out(fd, index=-1):
             md_step = int(line.split()[-1])
             md_stru_file = os.path.join(
                 os.path.dirname(fd.name), f'STRU_MD_{md_step}')
+            md_stru_dir = os.path.join(
+                os.path.dirname(fd.name), f'STRU')
+            md_stru_dir_file = os.path.join(md_stru_dir, f'STRU_MD_{md_step}')
             if os.path.exists(md_stru_file):
                 md_atoms = read_abacus(open(md_stru_file, 'r'))
                 images.append(md_atoms)
+            elif os.path.exists(md_stru_dir_file):   # compatible with ABACUS v2.2.3
+                md_atoms = read_abacus(open(md_stru_dir_file, 'r'))
+                images.append(md_atoms)
             else:
-                raise FileNotFoundError(f"Can't find {md_stru_file}")
+                raise FileNotFoundError(f"Can't find {md_stru_file} or {md_stru_dir_file}")
 
         # extract ibzkpts
         if 'SETUP K-POINTS' in line and not k_find:
