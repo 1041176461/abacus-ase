@@ -4,7 +4,7 @@
 ## Features
 1. Only versions after ABACUS v2.2.0 are supported, if you want to use ASE with previous ABACUS, please see [ZhenXiong Shen](https://gitee.com/wszhang/ase_calculator_abacus)
 2. ABACUS 'STRU' and 'running_*log' files can be easily parsed by `read(filename='STRU', format='abacus')` and `read(filename='running_md.log', index=':', format='abacus-out')`
-3. One can use `write('STRU', images, format='abacus')` to write ASE `Atoms` objects to ABACUS 'STRU' files 
+3. One can use `write('STRU', images, format='abacus', pp=pp, basisi=basis)` to write ASE `Atoms` objects to ABACUS 'STRU' files 
 4. Energy, Force, Stress, Fermi level, K-points, Eigenvalues, Occupations and MD information can be easily get by `atoms.calc.get_*` method.
 5. Pseudopotential and orbital settings have been changed to two parameters with `dict` type:   `pp` and `basis`, e.g.
     ```python
