@@ -551,6 +551,7 @@ def read_abacus_out(fd, index=-1):
         # extract ibzkpts
         if 'SETUP K-POINTS' in line and not k_find:
             nspin = int(next(fd).split()[-1])
+            next(fd)
             sline = next(fd).split()
             if sline[0] == 'nkstot':
                 nkstot = int(sline[-1])
@@ -558,14 +559,14 @@ def read_abacus_out(fd, index=-1):
                 nkstot = int(next(fd).split()[-1])
             sline = next(fd).split()
             if sline and sline[0] == 'nkstot_ibz':
-                nkstot_ibz = int(sline[0])
+                nkstot_ibz = int(sline[-1])
             next(fd)
             nks = nkstot_ibz if nkstot_ibz else nkstot
             totline = (nbands+2)*nks
             ibzkpts = []
             weights = []
             for i in range(nks):
-                kindex, kx, ky, kz, wei = next(fd).split()
+                kindex, kx, ky, kz, wei = next(fd).split()[:5]
                 ibzkpts.append(list(map(float, [kx, ky, kz])))
                 weights.append(float(wei))
             ibzkpts = np.array(ibzkpts)
