@@ -71,8 +71,8 @@ class Abacus(AbacusInput, FileIOCalculator):
 
     def set(self, **kwargs):
         """Override the set function, to test for changes in the
-        Vasp Calculator, then call the create_input.set()
-        on remaining inputs for VASP specific keys.
+        Abacus Calculator, then call the create_input.set()
+        on remaining inputs for ABACSU specific keys.
 
         Allows for setting ``label``, ``directory`` and ``txt``
         without resetting the results in the calculator.
@@ -80,21 +80,21 @@ class Abacus(AbacusInput, FileIOCalculator):
         changed_parameters = {}
 
         if 'label' in kwargs:
-            self.label = kwargs.pop('label')
+            self.label = kwargs.get('label')
 
         if 'directory' in kwargs:
             # str() call to deal with pathlib objects
-            self.directory = str(kwargs.pop('directory'))
+            self.directory = str(kwargs.get('directory'))
 
         if 'txt' in kwargs:
-            self.txt = kwargs.pop('txt')
+            self.txt = kwargs.get('txt')
 
         if 'atoms' in kwargs:
-            atoms = kwargs.pop('atoms')
+            atoms = kwargs.get('atoms')
             self.atoms = atoms  # Resets results
 
         if 'command' in kwargs:
-            self.command = kwargs.pop('command')
+            self.command = kwargs.get('command')
 
         changed_parameters.update(FileIOCalculator.set(self, **kwargs))
 
@@ -102,7 +102,7 @@ class Abacus(AbacusInput, FileIOCalculator):
         if changed_parameters:
             self.reset()  # We don't want to clear atoms
         if kwargs:
-            # If we make any changes to Vasp input, we always reset
+            # If we make any changes to Abacus input, we always reset
             AbacusInput.set(self, **kwargs)
             self.results.clear()
 
@@ -130,16 +130,16 @@ class Abacus(AbacusInput, FileIOCalculator):
         AbacusInput.write_input_core(self, directory=self.directory)
         AbacusInput.write_kpt(self, directory=self.directory)
         AbacusInput.write_pp(
-            self, pp=self.parameters['pp'], directory=self.directory, pseudo_dir=self.parameters.pop('pseudo_dir', None))
+            self, pp=self.parameters['pp'], directory=self.directory, pseudo_dir=self.parameters.get('pseudo_dir', None))
         if 'basis' in self.parameters.keys():
             AbacusInput.write_orb(
-                self, basis=self.parameters['basis'], directory=self.directory, basis_dir=self.parameters.pop('basis_dir', None))
+                self, basis=self.parameters['basis'], directory=self.directory, basis_dir=self.parameters.get('basis_dir', None))
         if 'offsite_basis' in self.parameters.keys():
-            AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, offsite_basis_dir=self.parameters.pop(
+            AbacusInput.write_abfs(self, offsite_basis=self.parameters['offsite_basis'], directory=self.directory, offsite_basis_dir=self.parameters.get(
                 'offsite_basis_dir', None))
 
-        write(os.path.join(self.directory, 'STRU'), atoms, format='abacus', pp=self.parameters['pp'], basis=self.parameters.pop('basis', None),
-              offsite_basis=self.parameters.pop('offsite_basis', None), scaled=scaled)
+        write(os.path.join(self.directory, 'STRU'), atoms, format='abacus', pp=self.parameters['pp'], basis=self.parameters.get('basis', None),
+              offsite_basis=self.parameters.get('offsite_basis', None), scaled=scaled)
 
     def read_results(self):
         out_dir = 'OUT.ABACUS' if 'suffix' not in self.parameters.keys(
