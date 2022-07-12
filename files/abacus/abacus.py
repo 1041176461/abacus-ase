@@ -139,7 +139,7 @@ class Abacus(AbacusInput, FileIOCalculator):
                 'offsite_basis_dir', None))
 
         write(os.path.join(self.directory, 'STRU'), atoms, format='abacus', pp=self.parameters['pp'], basis=self.parameters.get('basis', None),
-              offsite_basis=self.parameters.get('offsite_basis', None), scaled=scaled)
+              offsite_basis=self.parameters.get('offsite_basis', None), scaled=scaled, set_vel=False, set_mag=False)
 
     def read_results(self):
         out_dir = 'OUT.ABACUS' if 'suffix' not in self.parameters.keys(

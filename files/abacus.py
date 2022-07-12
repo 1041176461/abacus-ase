@@ -245,7 +245,7 @@ def read_abacus(fd, ase=True):
         if len(line) != 0:
             temp.append(line)
 
-    # print(temp)
+    #print(temp)
     atom_species = 0
     for i in range(len(temp)):
         if temp[i] == 'NUMERICAL_ORBITAL':
@@ -655,7 +655,7 @@ def read_abacus_out(fd, index=-1):
         atoms.set_cell(cell)
         atoms.set_positions(position)
         # if nkstot_ibz:
-        calc = SinglePointDFTCalculator(atoms, energy=energy,
+        calc = SinglePointDFTCalculator(atoms, energy=energy, free_energy=energy,
                                         forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
         # elif nkstot:
         #     calc = SinglePointDFTCalculator(atoms, energy=energy,
