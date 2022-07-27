@@ -13,7 +13,7 @@ import numpy as np
 
 from ase import Atoms
 from ase.utils import reader, writer
-from ase.units import Bohr, Hartree
+from ase.units import Bohr, Hartree, GPa
 
 
 def judge_exist_stru(stru=None):
@@ -627,6 +627,8 @@ def read_abacus_out(fd, index=-1):
             for i in range(3):
                 sx, sy, sz = next(fd).split()
                 stress[i] = [float(sx), float(sy), float(sz)]
+            stress *= -0.1 * GPa
+            stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
         elif "MD STRESS (KBAR)" in line:
             stress = np.zeros((3, 3))
             for i in range(3):
@@ -634,6 +636,8 @@ def read_abacus_out(fd, index=-1):
             for i in range(3):
                 sx, sy, sz = next(fd).split()
                 stress[i] = [float(sx), float(sy), float(sz)]
+            stress *= -0.1 * GPa
+            stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
             # if nkstot_ibz:
             images[-1].calc = SinglePointDFTCalculator(atoms, energy=md_e, free_energy=md_pot,
                                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
