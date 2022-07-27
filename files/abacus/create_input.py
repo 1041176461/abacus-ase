@@ -125,6 +125,7 @@ elec_keys = [
     # Trial energy to guess the upper bound of eigen energies of the Hamitonian Operator
     'emax_sto',
     'seed_sto',            # The random seed to generate stochastic orbitals
+    'kspacing'             # kspacing
 ]
 # 6
 relaxation_keys = [
