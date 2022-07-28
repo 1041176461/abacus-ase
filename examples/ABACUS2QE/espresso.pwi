@@ -1,0 +1,48 @@
+&CONTROL
+   calculation      = 'scf'
+   verbosity        = 'high'
+   restart_mode     = 'from_scratch'
+   wf_collect       = .true.
+   tstress          = .true.
+   tprnfor          = .true.
+   etot_conv_thr    = 1e-06
+   pseudo_dir       = './'
+/
+&SYSTEM
+   ibrav            = 0
+   nat              = 4
+   ntyp             = 1
+   nbnd             = 16
+   ecutwfc          = 50
+   occupations      = 'smearing'
+   degauss          = 0.01
+   smearing         = 'gauss'
+/
+&ELECTRONS
+   conv_thr         = 1e-08
+   mixing_mode      = 'plain'
+   mixing_beta      = 0.7
+   diagonalization  = 'cg'
+/
+&IONS
+/
+&CELL
+/
+
+ATOMIC_SPECIES
+Al 26.9815385 Al.PD04.PBE.UPF
+
+K_POINTS automatic
+21 21 21  0 0 0
+
+CELL_PARAMETERS angstrom
+4.03663199821224 0.00000000000000 0.00000000000000
+0.00000000000000 4.03663199821224 0.00000000000000
+0.00000000000000 0.00000000000000 4.03663199821224
+
+ATOMIC_POSITIONS angstrom
+Al 0.0000000000 0.0000000000 0.0000000000 
+Al 0.0000000000 2.0183159991 2.0183159991 
+Al 2.0183159991 0.0000000000 2.0183159991 
+Al 2.0183159991 2.0183159991 0.0000000000 
+
