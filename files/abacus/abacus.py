@@ -26,7 +26,10 @@ class Abacus(AbacusInput, FileIOCalculator):
     # Initialize parameters and get some information -START-
     name = 'abacus'
 
-    implemented_properties = ['energy', 'forces', 'fermi', 'stress']
+    implemented_properties = [
+        'energy', 'free_energy', 'forces', 'fermi', 'stress',
+        'magmom', 'magmoms'
+    ]
 
     default_parameters = dict(calculation='scf',
                               ecutwfc=50,
