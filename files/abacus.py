@@ -639,7 +639,7 @@ def read_abacus_out(fd, index=-1):
             stress *= -0.1 * GPa
             stress = stress.reshape(9)[[0, 4, 8, 5, 2, 1]]
             # if nkstot_ibz:
-            images[-1].calc = SinglePointDFTCalculator(atoms, energy=md_e, free_energy=md_pot,
+            images[-1].calc = SinglePointDFTCalculator(md_atoms, energy=md_e, free_energy=md_pot,
                                                        forces=force, stress=stress, efermi=efermi, ibzkpts=ibzkpts)
             # elif nkstot:
             #     images[-1].calc = SinglePointDFTCalculator(atoms, energy=energy,
@@ -669,7 +669,7 @@ def read_abacus_out(fd, index=-1):
             calc.kpts = kpts
         calc.name = 'Abacus'
         atoms.calc = calc
-
+        
         return [atoms]
     else:
         # return requested images, code borrowed from ase/io/trajectory.py
