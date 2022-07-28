@@ -654,12 +654,8 @@ class AbacusInput:
                   ):
         k = self.kpt_params
 
-        if self.elec_params['gamma_only'] == 1:
-            with open(join(directory, filename), 'w') as kpoint:
-                kpoint.write('K_POINTS\n')
-                kpoint.write('0\n')
-                kpoint.write('Gamma\n')
-                kpoint.write('1 1 1 0 0 0')
+        if self.elec_params['gamma_only'] == 1 or self.elec_params['kspacing'] > 0.0:
+            return
 
         else:
             with open(join(directory, filename), 'w') as kpoint:
